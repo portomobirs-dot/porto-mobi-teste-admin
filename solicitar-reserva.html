@@ -37,7 +37,8 @@ footer{text-align:center;color:#e7e7e7;font-size:12pt;margin:20px 0}
 <form id="formReserva"><div class="fields">
 <div class="field wide"><label for="origem">Local de embarque *</label><input id="origem" maxlength="180" placeholder="Rua, número, bairro e cidade" required></div>
 <div class="field wide"><label for="destino">Destino *</label><input id="destino" maxlength="180" placeholder="Endereço de destino" required></div>
-<div class="field"><label for="viagem">Data e hora desejadas *</label><input id="viagem" type="datetime-local" required></div>
+<div class="field"><label for="dataViagem">Data da viagem *</label><input id="dataViagem" type="date" required></div>
+<div class="field"><label for="horarioViagem">Horário da viagem *</label><input id="horarioViagem" type="time" step="60" required></div>
 <div class="field"><label for="passageiros">Passageiros *</label><input id="passageiros" type="number" min="1" max="20" value="1" required></div>
 <div class="field wide"><label for="observacoes">Observações</label><textarea id="observacoes" maxlength="900" placeholder="Bagagens, necessidades especiais ou outras informações"></textarea></div>
 </div><div class="actions"><button id="enviar" disabled type="submit">Enviar solicitação para análise</button></div>
@@ -119,7 +120,8 @@ $("formReserva").addEventListener("submit",async ev=>{
  }
  if(!$("formReserva").reportValidity())return;
  const origem=$("origem").value.trim(),destino=$("destino").value.trim();
- const dataLocal=$("viagem").value;const dataViagem=new Date(dataLocal);
+ const diaEscolhido=$("dataViagem").value, horaEscolhida=$("horarioViagem").value;
+ const dataLocal=diaEscolhido+"T"+horaEscolhida;const dataViagem=new Date(dataLocal);
  const passageiros=Number($("passageiros").value),observacoes=$("observacoes").value.trim();
  if(origem.length<5||destino.length<5||origem.length>180||destino.length>180){
   aviso("avisoEnvio","Informe endereços completos de embarque e destino.","bad");return;
@@ -144,15 +146,32 @@ $("formReserva").addEventListener("submit",async ev=>{
    origem,destino,
    dataReserva:firebase.firestore.Timestamp.fromDate(dataViagem),
    dataViagem:dataLocal,
-   horario:dataLocal.slice(11,16),
+   horario:horaEscolhida,
    passageiros,observacoes,
    status:"Aguardando Orçamento",
    dataSolicitacao:firebase.firestore.FieldValue.serverTimestamp()
   };
-  const resultado=await db.collection("reservas").add(pedido);
+   // Identificador legível do pedido: PMR-000001 ... PMR-999999.
+   // O identificador é aleatório, não sequencial. A regra Firestore create-only
+   // impede sobrescrever uma reserva de mesmo número. Numa colisão, tenta outro.
+   let codigoReserva="";
+   for(let tentativa=0;tentativa<5;tentativa++){
+    const numeros=new Uint32Array(1);
+    crypto.getRandomValues(numeros);
+    codigoReserva="PMR-"+String(1+(numeros[0]%999999)).padStart(6,"0");
+    try{
+     await db.collection("reservas").doc(codigoReserva).set({...pedido,codigo:codigoReserva});
+     break;
+    }catch(erro){
+     if(erro?.code!=="permission-denied"||tentativa===4)throw erro;
+     // Outra reserva pode já usar este código; uma nova tentativa não altera o pedido anterior.
+     codigoReserva="";
+    }
+   }
+   if(!codigoReserva)throw Error("Não foi possível gerar o número da reserva");
   envioConcluido=true;
-  aviso("avisoEnvio","Solicitação registrada com sucesso! Protocolo: "+resultado.id+". Situação: Aguardando Orçamento. Aguarde a análise da Porto Mobi; sua viagem ainda não está confirmada.","good");
-  aviso("aviso","Pedido enviado para análise da Porto Mobi.","good");
+  aviso("avisoEnvio","Solicitação "+codigoReserva+" registrada com sucesso! Situação: Aguardando Orçamento. Guarde seu número para consultas. A viagem só estará confirmada depois da análise da Porto Mobi.","good");
+   aviso("aviso","Pedido "+codigoReserva+" enviado para análise da Porto Mobi.","good");
  }catch(e){
   const friendly=e?.message==="Cadastro não aprovado"?"Seu cadastro deixou de estar aprovado. Atualize a situação antes de solicitar.":mensagemErro(e);
   aviso("avisoEnvio",friendly,"bad");
