@@ -87,6 +87,16 @@ footer{text-align:center;margin:19px 0;color:#eee}
 .rodape-retorno{display:block;width:100%;margin-top:20px}
 @media(max-width:790px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:630px){.cliente dl{grid-template-columns:103px minmax(0,1fr)}.cliente{padding:13px}}
+
+/* Tela 06 — cadastro administrativo de clientes: mantém os botões amarelo-dourados. */
+.cadastro-card{margin:20px 0 24px;padding:17px;border:1px solid #b9903d;border-radius:14px;background:linear-gradient(160deg,#21180d,#080808)}
+.cadastro-card h2{margin:0 0 5px}
+.cadastro-card .field-grid{margin:14px 0}
+.cadastro-card input[readonly]{background:#302717;color:#ffe19b;font-weight:700}
+.cadastro-card .status{margin:14px 0}
+.cadastro-card .hint{font-size:13pt;margin:7px 0 12px}
+.cadastro-card .actions>*{flex:1 1 185px}
+@media(max-width:630px){.cadastro-card{padding:14px 11px}}
 </style>
 </head>
 <body>
@@ -102,7 +112,7 @@ footer{text-align:center;margin:19px 0;color:#eee}
 <div id="conteudo" hidden>
   <section class="panel" aria-labelledby="tituloPagina">
     <h1 id="tituloPagina">Clientes (PMC)</h1>
-    <p>Consulte os clientes cadastrados no Firebase Firestore. Esta tela é <strong>somente leitura</strong>.</p>
+    <p>Consulte os clientes e prepare novos cadastros administrativos (PMC). A gravação depende de uma permissão específica no Firebase, sem criar automaticamente contas de login.</p>
     <p>Administrador: <strong id="nomeAdmin">PMA-001</strong></p>
     <div class="actions">
       <a class="nav gold" href="./painel-firebase.html">Retornar ao Painel do Administrador</a>
@@ -115,6 +125,41 @@ footer{text-align:center;margin:19px 0;color:#eee}
       <div class="metric"><span>Com telefone</span><strong id="mTelefone">—</strong></div>
       <div class="metric"><span>Com e-mail</span><strong id="mEmail">—</strong></div>
     </div>
+
+    <section class="cadastro-card" aria-labelledby="tituloNovoCliente">
+      <h2 id="tituloNovoCliente">Cadastrar novo cliente (PMC)</h2>
+      <p class="hint">Cadastro administrativo de contato. O código PMC é sugerido automaticamente; a <strong>Data do Cadastro</strong> será gravada pelo horário do servidor Firebase. Este formulário <strong>não cria senha nem acesso ao sistema</strong>.</p>
+      <form id="formCadastro" autocomplete="off">
+        <div class="field-grid">
+          <div class="field">
+            <label for="novoCodigo">Código PMC automático</label>
+            <input id="novoCodigo" name="codigo" type="text" readonly value="Aguardando consulta" aria-readonly="true">
+          </div>
+          <div class="field">
+            <label for="dataAutomatica">Data do Cadastro</label>
+            <input id="dataAutomatica" type="text" readonly value="Automática no servidor ao salvar" aria-readonly="true">
+          </div>
+          <div class="field wide">
+            <label for="novoNome">Nome completo *</label>
+            <input id="novoNome" name="nome" type="text" required minlength="2" maxlength="110" autocomplete="name" placeholder="Nome completo do cliente">
+          </div>
+          <div class="field">
+            <label for="novoTelefone">Telefone / WhatsApp</label>
+            <input id="novoTelefone" name="telefone" type="tel" inputmode="tel" maxlength="25" autocomplete="tel" placeholder="(51) 99999-9999">
+          </div>
+          <div class="field">
+            <label for="novoEmail">E-mail</label>
+            <input id="novoEmail" name="email" type="email" maxlength="160" autocomplete="email" placeholder="cliente@exemplo.com">
+          </div>
+        </div>
+        <p class="hint">* Campo obrigatório. Informe pelo menos um contato: telefone ou e-mail. O código é único por documento e é conferido novamente antes da gravação.</p>
+        <div class="actions">
+          <button id="cadastrar" class="gold" type="submit" disabled>Cadastrar cliente</button>
+          <button id="limparCadastro" class="gold" type="button">Limpar campos</button>
+        </div>
+      </form>
+      <div class="status" id="avisoCadastro" role="status" aria-live="polite">Cadastro preparado. A gravação exige autorização específica nas regras do Firestore. Nenhum dado será criado apenas por abrir esta página.</div>
+    </section>
     <div class="section-lead"><h2>Pesquisar clientes</h2><p>Pesquise pelo nome, código PMC, e-mail ou telefone.</p></div>
     <div class="field-grid">
       <div class="field wide">
@@ -128,7 +173,7 @@ footer{text-align:center;margin:19px 0;color:#eee}
   </section>
   <section class="panel" aria-labelledby="tituloLista">
     <h2 id="tituloLista">Lista de clientes</h2>
-    <p class="hint">Exibe os dados disponíveis no Firestore. A Data do Cadastro será automática nos novos formulários de cadastro; registros antigos sem essa informação mostram “Não registrada”.</p>
+    <p class="hint">Exibe os dados disponíveis no Firestore. A Data do Cadastro é gerada automaticamente pelo servidor nos registros criados por este formulário; registros antigos sem essa informação mostram “Não registrada”.</p>
     <div class="count" id="contagem" aria-live="polite">Aguardando consulta…</div>
     <div class="clientes-grid" id="lista" aria-live="polite"></div>
     <button type="button" id="mostrarMais" class="gold" hidden>Mostrar mais clientes</button>
@@ -158,6 +203,7 @@ const campos={
  cadastro:["createdAt","criadoEm","dataCadastro","created_at","dataCriacao"]
 };
 let auth,db,autorizado=false,carregando=false,clientes=[],limite=40;
+let cadastroEmAndamento=false,consultaCarregada=false;
 function aviso(id,mensagem,tipo=""){const area=$(id);area.textContent=mensagem;area.className="status"+(tipo?" "+tipo:"");}
 function no(tag,classe,valor){const el=document.createElement(tag);if(classe)el.className=classe;if(valor!==undefined)el.textContent=String(valor);return el;}
 function dado(r,campo){return pegar(r,campos[campo]);}
@@ -177,7 +223,7 @@ function dataCadastro(r){
    v=new Date(v);
  }
  if(!(v instanceof Date)||Number.isNaN(v.getTime()))return "Não registrada";
- return new Intl.DateTimeFormat("pt-BR",{dateStyle:"short"}).format(v);
+ return new Intl.DateTimeFormat("pt-BR",{dateStyle:"short",timeStyle:"short"}).format(v);
 }
 function buscaCliente(registro){const r=registro.data;return [dado(r,"nome"),dado(r,"codigo"),dado(r,"email"),dado(r,"telefone")].join(" ");}
 function criarCliente({data:r}){
@@ -219,6 +265,77 @@ async function validarAdministrador(user){
  const admin=a.data(),perfil=u.data();
  if(admin.codigo!=="PMA-001"||admin.ativo!==true||admin.papel!=="administrador"||perfil.code!=="PMA-001"||perfil.role!=="admin"||perfil.uid!==user.uid)throw Error("Perfil não autorizado.");
  return admin;
+}
+
+// Um cadastro administrativo não cria usuário do Firebase Authentication.
+// Os códigos são sugeridos em sequência pela lista atual e a transação
+// verifica que o documento ainda não existe, evitando substituição acidental.
+function proximoCodigo(){
+  let maior=0;
+  for(const {id,data} of clientes){
+    for(const textoCodigo of [id,dado(data,"codigo")]){
+      const m=String(textoCodigo||"").match(/^PMC-(\d{4,})$/i);
+      if(m)maior=Math.max(maior,Number(m[1]));
+    }
+  }
+  const proximo=maior+1;
+  if(!Number.isSafeInteger(proximo)||proximo>999999999)return "";
+  return "PMC-"+String(proximo).padStart(4,"0");
+}
+function atualizarNovoCodigo(){
+  $("novoCodigo").value=consultaCarregada?proximoCodigo():"Aguardando consulta";
+  $("cadastrar").disabled=!autorizado||!consultaCarregada||carregando||cadastroEmAndamento||!proximoCodigo();
+}
+function limparFormulario(){
+  $("formCadastro").reset();
+  atualizarNovoCodigo();
+}
+async function cadastrarCliente(event){
+  event.preventDefault();
+  if(!autorizado||!consultaCarregada||cadastroEmAndamento||carregando||auth?.currentUser?.uid!==ADMIN_UID){
+    aviso("avisoCadastro","Não foi possível iniciar o cadastro. Confira sua sessão e atualize a lista de clientes.","bad");return;
+  }
+  const form=$("formCadastro");
+  if(!form.reportValidity())return;
+  const nome=$("novoNome").value.trim().replace(/\s+/g," ");
+  const telefone=$("novoTelefone").value.trim();
+  const email=$("novoEmail").value.trim().toLowerCase();
+  const codigo=proximoCodigo();
+  if(nome.length<2||nome.length>110){aviso("avisoCadastro","Informe o nome completo (entre 2 e 110 caracteres).","bad");return;}
+  if(!telefone&&!email){aviso("avisoCadastro","Informe pelo menos o telefone ou o e-mail do cliente.","bad");return;}
+  if(telefone.length>25||email.length>160||!codigo){aviso("avisoCadastro","Revise os campos ou atualize a lista antes de cadastrar.","bad");return;}
+  if(!window.confirm("Confirmar o cadastro administrativo de "+nome+" com código "+codigo+"?\n\nA data será gravada pelo servidor Firebase. Isto não cria uma conta de login."))return;
+  cadastroEmAndamento=true;
+  atualizarNovoCodigo();
+  aviso("avisoCadastro","Conferindo o código e solicitando o cadastro ao Firestore…");
+  try{
+    const ref=db.collection("clientes").doc(codigo);
+    const dados={
+      codigo,nome,telefone,email,
+      situacao:"Cadastro administrativo",
+      cadastroPorUid:ADMIN_UID,
+      dataCadastro:firebase.firestore.FieldValue.serverTimestamp()
+    };
+    await db.runTransaction(async transacao=>{
+      const existente=await transacao.get(ref);
+      if(existente.exists){const erro=new Error("codigo-ocupado");erro.code="pma/codigo-ocupado";throw erro;}
+      transacao.set(ref,dados);
+    });
+    limparFormulario();
+    await carregar();
+    aviso("avisoCadastro","Cliente "+codigo+" cadastrado no Firestore. A Data do Cadastro foi registrada pelo servidor. Nenhuma conta de acesso foi criada.","good");
+  }catch(e){
+    const codigoErro=e?.code||"";
+    const mensagem=codigoErro==="permission-denied"
+      ?"O Firebase não autorizou este cadastro. Não altere as regras sem verificar a permissão específica para o administrador PMA-001."
+      :codigoErro==="pma/codigo-ocupado"
+      ?"Esse código PMC já foi utilizado. Atualize os clientes e tente novamente."
+      :"Não foi possível criar o cadastro ("+(codigoErro||"falha de conexão")+"). Nenhuma confirmação de gravação foi recebida.";
+    aviso("avisoCadastro",mensagem,"bad");
+  }finally{
+    cadastroEmAndamento=false;
+    atualizarNovoCodigo();
+  }
 }
 async function carregar(){
  if(!autorizado||carregando)return;
@@ -268,6 +385,8 @@ $("busca").addEventListener("input",()=>{limite=40;renderizar();});
 $("limpar").addEventListener("click",()=>{$("busca").value="";limite=40;renderizar();$("busca").focus();});
 $("mostrarMais").addEventListener("click",()=>{limite+=40;renderizar();});
 $("atualizar").addEventListener("click",carregar);
+$("formCadastro").addEventListener("submit",cadastrarCliente);
+$("limparCadastro").addEventListener("click",()=>{limparFormulario();aviso("avisoCadastro","Campos limpos. Nenhum dado foi alterado.");});
 $("retornar").addEventListener("click",()=>window.location.assign("./painel-firebase.html"));
 iniciar();
 </script>
