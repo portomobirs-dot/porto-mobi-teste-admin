@@ -52,6 +52,31 @@ dt{font-weight:700}dd{margin:0;overflow-wrap:anywhere}
 .exit{display:block;width:100%;margin-top:22px}
 footer{text-align:center;padding:15px 4px}
 @media(max-width:650px){main{padding:10px 9px 35px}.panel{padding:14px 12px}.top .pill{font-size:11pt;padding:6px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.filters{grid-template-columns:1fr}.actions{width:100%}.actions>*{flex:1}dl{grid-template-columns:104px minmax(0,1fr)}}
+
+/* Análise administrativa de disponibilidade — somente leitura, 1 motorista. */
+.regras-agenda{border:1px solid #a47c34;border-radius:12px;padding:15px;background:#120f0a;margin:16px 0}
+.regras-agenda p{margin:7px 0 10px}
+.regras-agenda strong{color:#ffe49b}
+.regras-agenda .aviso-agenda{color:#f5e1ba}
+.agenda-resumo{border:1px solid #9a7837;padding:12px;border-radius:9px;background:#20190e;margin-top:10px;overflow-wrap:anywhere}
+.agenda-resumo.perigo{border:2px solid #f05252;border-left:6px solid #ff5555;background:#230f0f}
+.alerta-conflito{margin:14px 0 10px;padding:13px;border:2px solid #ff5656;border-left:6px solid #ff5656;border-radius:10px;background:#240e0e}
+.alerta-conflito strong,.agenda-resumo.perigo strong{display:block;color:#ff6565!important;font-weight:900!important;text-transform:uppercase;letter-spacing:.2px}
+.alerta-conflito p{margin:7px 0 0;color:#fff}
+.alerta-indeterminado{border:1px solid #d4ac57;border-left:5px solid #efc462;border-radius:9px;padding:12px;margin:10px 0;background:#231b0b}
+.alerta-indeterminado strong{color:#ffe29c}
+.duracao-campo{margin-top:13px;padding:12px;border:1px solid #6e592e;border-radius:10px;background:#17140e}
+.duracao-campo label{display:block;color:#fff;margin-bottom:7px}
+.duracao-campo input{width:100%;max-width:260px;background:#14130f;color:#fff}
+.duracao-campo p{font-size:12pt;margin:7px 0 0;color:#efdfba}
+.duracao-campo input::placeholder{color:#c8bcb0}
+.reserva.em-conflito{border:2px solid #ce4545}
+.reserva details summary{display:block;padding:10px 13px;border:1px solid #f1c967;border-radius:9px;color:#1e1507;background:linear-gradient(100deg,#ffe27c,#d6a128);font-weight:800;cursor:pointer}
+.sugestao-horario{color:#ffe5a6;font-weight:700;margin-top:10px}
+/* A apresentação do alerta é sempre vermelha; demais botões permanecem amarelos. */
+button,.nav{background:linear-gradient(100deg,#ffe27c,#d6a128)!important;color:#1d1405!important;border-color:#e3b944!important;font-weight:800}
+button:hover,.nav:hover{background:linear-gradient(100deg,#ffea9a,#e6b841)!important}
+@media(max-width:650px){.regras-agenda{padding:12px}.duracao-campo input{max-width:100%}}
 </style>
 </head>
 <body>
@@ -75,6 +100,12 @@ footer{text-align:center;padding:15px 4px}
 <div class="card"><span>Confirmadas</span><strong id="mConfirmada">—</strong></div>
 <div class="card"><span>Concluídas</span><strong id="mConcluida">—</strong></div>
 </div>
+<section class="regras-agenda" aria-labelledby="tituloAgenda">
+  <h2 id="tituloAgenda">Análise de conflito de horários — 1 motorista</h2>
+  <p><strong>Margem mínima inicial:</strong> 60 minutos entre o fim previsto de um atendimento e o próximo embarque. Um deslocamento maior poderá exigir mais tempo.</p>
+  <p class="aviso-agenda">A análise considera todas as solicitações não canceladas, inclusive as pendentes. Somente horários e durações conhecidos permitem comparar os períodos completos. Nenhuma reserva será confirmada ou alterada nesta tela.</p>
+  <div id="resumoAgenda" class="agenda-resumo" role="status" aria-live="polite">Aguardando consulta para analisar os horários…</div>
+</section>
 <div class="filters">
 <div><label for="busca">Buscar reserva ou cliente</label><input type="search" id="busca" placeholder="Código, nome, origem ou destino"></div>
 <div><label for="filtro">Filtrar por status</label><select id="filtro"><option value="todos">Todos os status</option><option value="pendente">Pendentes</option><option value="confirmada">Confirmadas</option><option value="andamento">Em andamento</option><option value="concluida">Concluídas</option><option value="outros">Outros status</option></select></div>
@@ -99,6 +130,9 @@ const texto=v=>String(v==null?"":v).trim();
 const norm=v=>texto(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const valor=(r,nomes)=>{for(const chave of nomes){if(r[chave]!==undefined&&r[chave]!==null&&texto(r[chave])!=="")return r[chave];}return "";};
 let auth,db,autorizado=false,carregando=false,reservas=[];
+const MARGEM_MINUTOS=60;
+const duracoesLocais=new Map();
+let analiseAtual=new Map();
 function aviso(id,mensagem,tipo=""){const e=$(id);e.textContent=mensagem;e.className="status"+(tipo?" "+tipo:"");}
 function categoria(s){s=norm(s);if(/confirmad|aprovad/.test(s))return "confirmada";if(/concluid|finalizad|encerrad/.test(s))return "concluida";if(/andamento|atendimento|iniciad|a caminho|em viagem/.test(s))return "andamento";if(/pendente|aguard|solicit|nova|novo|analise/.test(s))return "pendente";return "outros";}
 function dataObj(r){let v=valor(r,["dataReserva","data_reserva","dataViagem","data_viagem","data"]);if(!v)return null;if(typeof v.toDate==="function")return v.toDate();if(v instanceof Date)return isNaN(v.getTime())?null:v;if(typeof v==="string"){const m=v.match(/^(\d{2})\/(\d{2})\/(\d{4})/);if(m)return new Date(+m[3],+m[2]-1,+m[1]);const d=new Date(v);return isNaN(d.getTime())?null:d;}return null;}
@@ -125,27 +159,199 @@ function dataSolicitacaoFmt(r){
 }
 const dataFmt=r=>{const d=dataObj(r);return d?new Intl.DateTimeFormat("pt-BR").format(d):"Não informada";};
 function no(tag,classe,txt){const n=document.createElement(tag);if(classe)n.className=classe;if(txt!==undefined)n.textContent=String(txt);return n;}
+// O cálculo abaixo é SOMENTE uma triagem para o administrador.
+// Não altera dados, não confirma reservas, não bloqueia outros usuários.
+function inicioAtendimento(r){
+  const horario=texto(valor(r,["horario","hora","horaReserva","horarioSaida"]));
+  const horaMatch=horario.match(/^(\d{1,2}):(\d{2})/);
+  const ajustarHora=d=>{
+    if(!(d instanceof Date)||!Number.isFinite(d.getTime()))return null;
+    if(!horaMatch)return d;
+    const h=Number(horaMatch[1]),m=Number(horaMatch[2]);
+    if(h>23||m>59)return null;
+    const x=new Date(d.getTime());x.setHours(h,m,0,0);return Number.isFinite(x.getTime())?x:null;
+  };
+  const bruto=valor(r,["dataViagem","data_viagem","dataReserva","data_reserva","data"]);
+  if(bruto==="")return null;
+  if(bruto&&typeof bruto.toDate==="function")return ajustarHora(bruto.toDate());
+  if(bruto instanceof Date)return ajustarHora(bruto);
+  if(typeof bruto==="string"){
+    const t=bruto.trim();
+    const isoLocal=t.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+    if(isoLocal){
+      const h=horaMatch?Number(horaMatch[1]):(isoLocal[4]?Number(isoLocal[4]):0);
+      const m=horaMatch?Number(horaMatch[2]):(isoLocal[5]?Number(isoLocal[5]):0);
+      const d=new Date(Number(isoLocal[1]),Number(isoLocal[2])-1,Number(isoLocal[3]),h,m,0,0);
+      if(d.getFullYear()!==Number(isoLocal[1])||d.getMonth()!==Number(isoLocal[2])-1||d.getDate()!==Number(isoLocal[3]))return null;
+      return Number.isFinite(d.getTime())?d:null;
+    }
+    const br=t.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2}))?/);
+    if(br){
+      const h=horaMatch?Number(horaMatch[1]):(br[4]?Number(br[4]):0);
+      const m=horaMatch?Number(horaMatch[2]):(br[5]?Number(br[5]):0);
+      const d=new Date(Number(br[3]),Number(br[2])-1,Number(br[1]),h,m,0,0);
+      if(d.getFullYear()!==Number(br[3])||d.getMonth()!==Number(br[2])-1||d.getDate()!==Number(br[1]))return null;
+      return Number.isFinite(d.getTime())?d:null;
+    }
+    return ajustarHora(new Date(t));
+  }
+  return null;
+}
+function duracaoEmMinutos(v){
+  if(typeof v==="number")return Number.isInteger(v)&&v>=15&&v<=1440?v:null;
+  if(typeof v!=="string")return null;
+  const t=v.trim().toLowerCase().replace(",", ".");
+  if(/^\d{1,4}$/.test(t)){const n=Number(t);return n>=15&&n<=1440?n:null;}
+  const horas=t.match(/^(\d{1,2})\s*h(?:\s*(\d{1,2})\s*(?:min|m)?)?$/);
+  if(horas){const n=Number(horas[1])*60+Number(horas[2]||0);return n>=15&&n<=1440?n:null;}
+  const hhmm=t.match(/^(\d{1,2}):(\d{2})$/);
+  if(hhmm){const n=Number(hhmm[1])*60+Number(hhmm[2]);return n>=15&&n<=1440?n:null;}
+  return null;
+}
+function duracaoReserva(id,r){
+  if(duracoesLocais.has(id))return duracoesLocais.get(id);
+  const bruto=valor(r,["duracaoPrevistaMinutos","duracaoEstimadaMinutos","duracaoMinutos","tempoServicoMinutos","tempoViagemMinutos","tempoTotalMinutos","tempoMinutos","duracaoPrevista","duracao"]);
+  return duracaoEmMinutos(bruto);
+}
+function statusInativo(s){return /cancelad|rejeitad|recusad|negad|desist|concluid|finalizad|encerrad/.test(norm(s));}
+function fmtDiaHora(d){return new Intl.DateTimeFormat("pt-BR",{dateStyle:"short",timeStyle:"short",timeZone:"America/Sao_Paulo"}).format(d);}
+function fmtHora(d){return new Intl.DateTimeFormat("pt-BR",{hour:"2-digit",minute:"2-digit",timeZone:"America/Sao_Paulo"}).format(d);}
+// Preserva um intervalo livre de 60 min entre o fim e o início de dois atendimentos.
+function compararPeriodos(a,b){
+  const primeiro=a.inicio.getTime()<=b.inicio.getTime()?a:b;
+  const segundo=primeiro===a?b:a;
+  const diferencaMin=(segundo.inicio-primeiro.inicio)/60000;
+  if(primeiro.duracao===null){
+    // Mesmo sem duração, inícios até 60 min de distância já demandam revisão.
+    return diferencaMin<=MARGEM_MINUTOS?"conflito":"indeterminado";
+  }
+  if(diferencaMin<primeiro.duracao+MARGEM_MINUTOS)return "conflito";
+  return "livre";
+}
+function sugestaoPara(item,ativos){
+  if(item.duracao===null || categoria(item.data.status)!=="pendente")return null;
+  const outros=ativos.filter(a=>a.id!==item.id);
+  // Uma duração desconhecida no mesmo dia ou nas 24h anteriores impede
+  // assegurar que um horário calculado seja uma alternativa realmente livre.
+  if(outros.some(a=>a.duracao===null && Math.abs(a.inicio-item.inicio)<86400000))return null;
+  let candidato=item.inicio.getTime(),deslocado=false;
+  const margem=MARGEM_MINUTOS*60000,duracao=item.duracao*60000;
+  for(let rodada=0;rodada<outros.length+3;rodada++){
+    let proximo=candidato;
+    for(const a of outros){
+      if(a.duracao===null)continue;
+      const comeco=a.inicio.getTime(),fim=comeco+a.duracao*60000;
+      if(candidato<fim+margem && comeco<candidato+duracao+margem){
+        proximo=Math.max(proximo,fim+margem);
+      }
+    }
+    if(proximo===candidato)return deslocado?new Date(candidato):null;
+    candidato=proximo;deslocado=true;
+  }
+  return null;
+}
+function analisarConflitos(itens){
+  const resultados=new Map(),ativos=[];
+  let semInicio=0,semDuracao=0,desconsiderados=0;
+  for(const {id,data} of itens){
+    const res={id,data,inicio:inicioAtendimento(data),duracao:duracaoReserva(id,data),conflitos:new Set(),indeterminados:new Set(),sugestao:null};
+    resultados.set(id,res);
+    if(statusInativo(data.status)){desconsiderados++;continue;}
+    if(!res.inicio){semInicio++;continue;}
+    if(res.duracao===null)semDuracao++;
+    ativos.push(res);
+  }
+  for(let i=0;i<ativos.length;i++){
+    for(let j=i+1;j<ativos.length;j++){
+      const a=ativos[i],b=ativos[j];
+      // Sem duração da primeira viagem, analisamos conservadoramente até 24h.
+      if(Math.abs(a.inicio-b.inicio)>48*3600000)continue;
+      const conclusao=compararPeriodos(a,b);
+      if(conclusao==="conflito"){a.conflitos.add(b.id);b.conflitos.add(a.id);}
+      else if(conclusao==="indeterminado"){a.indeterminados.add(b.id);b.indeterminados.add(a.id);}
+    }
+  }
+  for(const a of ativos){if(a.conflitos.size)a.sugestao=sugestaoPara(a,ativos);}
+  const conflitos=ativos.filter(a=>a.conflitos.size).length;
+  const indeterminados=ativos.filter(a=>a.indeterminados.size).length;
+  return {resultados,conflitos,indeterminados,semInicio,semDuracao,desconsiderados,ativos:ativos.length};
+}
+function atualizarResumoAgenda(resultado){
+  const e=$("resumoAgenda");
+  e.replaceChildren();e.className="agenda-resumo";
+  if(!reservas.length){e.textContent="Nenhuma reserva cadastrada. A análise de disponibilidade começará quando houver solicitações.";return;}
+  if(resultado.conflitos){
+    e.classList.add("perigo");
+    e.append(no("strong","","CONFLITO DE HORÁRIO"),no("div","",resultado.conflitos+" solicitação(ões) precisam de conferência. Os alertas aparecem nos respectivos pedidos abaixo."));
+  }else{
+    e.textContent="Nenhuma sobreposição identificada com os dados disponíveis. Isso não é confirmação de disponibilidade.";
+  }
+  if(resultado.semDuracao||resultado.semInicio||resultado.indeterminados){
+    e.append(no("p","","Análise incompleta: "+resultado.semDuracao+" atendimento(s) sem duração, "+resultado.semInicio+" sem data/horário válido e "+resultado.indeterminados+" com possível choque não conclusivo. Informe a duração prevista antes de confirmar uma reserva."));
+  }
+  if(resultado.desconsiderados)e.append(no("p","",resultado.desconsiderados+" registro(s) cancelado(s) ou encerrado(s) fora da agenda ativa."));
+}
+
 function renderizar(){
- const q=norm($("busca").value),tipo=$("filtro").value,lista=$("lista");
- const filtradas=reservas.filter(({id,data})=>{
-  if(tipo!=="todos"&&categoria(data.status)!==tipo)return false;
-  const pesquisa=[id,valor(data,["codigo","codigoReserva"]),valor(data,["nomeCliente","cliente_nome","clienteNome"]),valor(data,["origem","localOrigem","localEmbarque"]),valor(data,["destino","localDestino","localDesembarque"])].map(norm).join(" ");
-  return !q||pesquisa.includes(q);
- });
- $("contagem").textContent="Solicitações encontradas: "+filtradas.length;lista.replaceChildren();
- if(!filtradas.length){lista.append(no("div","empty",reservas.length?"Nenhuma reserva corresponde aos filtros.":"Nenhuma reserva cadastrada no Firestore."));return;}
- for(const {id,data} of filtradas){
-  const card=no("article","reserva"),top=no("div","reserva-top"),info=no("div");
-  info.append(no("div","reserva-titulo","Reserva "+(valor(data,["codigo","codigoReserva"])||id)));
-  info.append(no("div","reserva-dado","Cliente: "+(valor(data,["nomeCliente","cliente_nome","clienteNome"])||"Não informado")));
-  info.append(no("div","reserva-dado","Data da solicitação: "+dataSolicitacaoFmt(data)));
-  info.append(no("div","reserva-dado","Data da viagem: "+dataFmt(data)));
-  top.append(info,no("span","etiqueta",valor(data,["status"])||"Status não informado"));
-  const details=no("details"),dl=no("dl");details.append(no("summary","","Ver detalhes da solicitação"));
-  const campos=[["Código",valor(data,["codigo","codigoReserva"])||id],["Cliente",valor(data,["nomeCliente","cliente_nome","clienteNome"])],["Data da solicitação (automática)",dataSolicitacaoFmt(data)],["Data da viagem",dataFmt(data)],["Horário",valor(data,["horario","hora","horaReserva","horarioSaida"])],["Status",valor(data,["status"])||"Não informado"],["Origem",valor(data,["origem","localOrigem","localEmbarque","enderecoOrigem"])],["Destino",valor(data,["destino","localDestino","localDesembarque","enderecoDestino"])],["Serviço",valor(data,["servico","tipoServico","categoria"])],["Motorista",valor(data,["motoristaNome","nomeMotorista"])],["Observações",valor(data,["observacoes","observacao"])]];
-  for(const [rotulo,dado] of campos)if(dado){dl.append(no("dt","",rotulo),no("dd","",typeof dado==="object"?"Não disponível":dado));}
-  details.append(dl);card.append(top,details);lista.append(card);
- }
+  const analise=analisarConflitos(reservas);
+  analiseAtual=analise.resultados;
+  atualizarResumoAgenda(analise);
+  const q=norm($("busca").value),tipo=$("filtro").value,lista=$("lista");
+  const filtradas=reservas.filter(({id,data})=>{
+   if(tipo!=="todos"&&categoria(data.status)!==tipo)return false;
+   const pesquisa=[id,valor(data,["codigo","codigoReserva"]),valor(data,["nomeCliente","cliente_nome","clienteNome"]),valor(data,["origem","localOrigem","localEmbarque"]),valor(data,["destino","localDestino","localDesembarque"])].map(norm).join(" ");
+   return !q||pesquisa.includes(q);
+  });
+  $("contagem").textContent="Solicitações encontradas: "+filtradas.length;lista.replaceChildren();
+  if(!filtradas.length){lista.append(no("div","empty",reservas.length?"Nenhuma reserva corresponde aos filtros.":"Nenhuma reserva cadastrada no Firestore."));return;}
+  for(const {id,data} of filtradas){
+   const resultado=analise.resultados.get(id);
+   const card=no("article","reserva"),top=no("div","reserva-top"),info=no("div");
+   if(resultado?.conflitos.size)card.classList.add("em-conflito");
+   info.append(no("div","reserva-titulo","Reserva "+(valor(data,["codigo","codigoReserva"])||id)));
+   info.append(no("div","reserva-dado","Cliente: "+(valor(data,["nomeCliente","cliente_nome","clienteNome"])||"Não informado")));
+   info.append(no("div","reserva-dado","Data da solicitação: "+dataSolicitacaoFmt(data)));
+   info.append(no("div","reserva-dado","Data da viagem: "+dataFmt(data)));
+   if(resultado?.inicio)info.append(no("div","reserva-dado","Início para análise: "+fmtDiaHora(resultado.inicio)));
+   top.append(info,no("span","etiqueta",valor(data,["status"])||"Status não informado"));
+   card.append(top);
+   if(resultado?.conflitos.size){
+     const alerta=no("div","alerta-conflito");alerta.setAttribute("role","alert");
+     alerta.append(no("strong","","CONFLITO DE HORÁRIO"));
+     alerta.append(no("p","","Há sobreposição ou margem inferior a 60 minutos em relação a outra solicitação. Consulte a agenda antes de confirmar qualquer atendimento."));
+     const codigos=[...resultado.conflitos].map(outroId=>{const r=reservas.find(x=>x.id===outroId);return r?texto(valor(r.data,["codigo","codigoReserva"]))||r.id:outroId;});
+     alerta.append(no("p","","Verificar também: "+codigos.slice(0,5).join(", ")+(codigos.length>5?" e outras solicitações":"")+"."));
+     if(resultado.sugestao){
+       alerta.append(no("div","sugestao-horario","Horário alternativo estimado: "+fmtDiaHora(resultado.sugestao)+". Sujeito a confirmação administrativa, duração real e deslocamento."));
+     }else if(categoria(data.status)==="pendente"){
+       alerta.append(no("p","","Para avaliar um horário alternativo com segurança, informe a duração desta viagem e das demais viagens próximas."));
+     }
+     card.append(alerta);
+   }
+   if(resultado && !statusInativo(data.status)){
+     if(!resultado.inicio){
+       const alerta=no("div","alerta-indeterminado");alerta.append(no("strong","","Análise de horários incompleta"),no("p","","Informe data e horário válidos para verificar possíveis conflitos."));card.append(alerta);
+     }else if(resultado.indeterminados.size || resultado.duracao===null){
+       const alerta=no("div","alerta-indeterminado");
+       alerta.append(no("strong","","Disponibilidade não verificada"),no("p","","A duração de um ou mais atendimentos não está informada. Não interprete a ausência de conflito destacado como horário livre."));
+       card.append(alerta);
+     }
+   }
+   const details=no("details"),dl=no("dl");details.append(no("summary","","Ver detalhes da solicitação"));
+   const campos=[["Código",valor(data,["codigo","codigoReserva"])||id],["Cliente",valor(data,["nomeCliente","cliente_nome","clienteNome"])],["Data da solicitação (automática)",dataSolicitacaoFmt(data)],["Data da viagem",dataFmt(data)],["Horário",valor(data,["horario","hora","horaReserva","horarioSaida"])],["Status",valor(data,["status"])||"Não informado"],["Origem",valor(data,["origem","localOrigem","localEmbarque","enderecoOrigem"])],["Destino",valor(data,["destino","localDestino","localDesembarque","enderecoDestino"])],["Serviço",valor(data,["servico","tipoServico","categoria"])],["Motorista",valor(data,["motoristaNome","nomeMotorista"])],["Observações",valor(data,["observacoes","observacao"])]];
+   for(const [rotulo,dado] of campos)if(dado){dl.append(no("dt","",rotulo),no("dd","",typeof dado==="object"?"Não disponível":dado));}
+   details.append(dl);
+   if(!statusInativo(data.status)){
+     const box=no("div","duracao-campo"),label=no("label","","Duração prevista para analisar conflito (minutos)");
+     const campo=no("input");const inputId="duracao-"+String(id).replace(/[^a-zA-Z0-9_-]/g,"-");
+     label.htmlFor=inputId;campo.id=inputId;campo.type="number";campo.min="15";campo.max="1440";campo.step="1";campo.inputMode="numeric";campo.placeholder="Ex.: 120";
+     campo.className="duracao-input";campo.dataset.reservaId=id;
+     const duracao=duracaoReserva(id,data);campo.value=duracao===null?"":String(duracao);
+     box.append(label,campo,no("p","","Valor usado apenas nesta análise. Não altera a reserva no Firebase; 60 minutos adicionais são considerados como margem de segurança."));
+     details.append(box);
+   }
+   card.append(details);lista.append(card);
+  }
 }
 async function validar(user){
  if(!user||user.uid!==ADMIN_UID)throw Error("Acesso restrito ao PMA-001.");
@@ -189,6 +395,22 @@ async function iniciar(){
 }
 $("busca").addEventListener("input",renderizar);
 $("filtro").addEventListener("change",renderizar);
+$("lista").addEventListener("change",event=>{
+ const campo=event.target;
+ if(!campo.classList.contains("duracao-input"))return;
+ const id=campo.dataset.reservaId;
+ if(!reservas.some(r=>r.id===id))return;
+ if(campo.value.trim()==="")duracoesLocais.set(id,null);
+ else{
+   const n=Number(campo.value);
+   if(!Number.isInteger(n)||n<15||n>1440){
+     window.alert("Informe uma duração entre 15 e 1440 minutos, ou deixe em branco para indicar duração não conhecida.");
+     campo.focus();return;
+   }
+   duracoesLocais.set(id,n);
+ }
+ renderizar();
+});
 $("atualizar").addEventListener("click",carregar);
 $("sair").addEventListener("click",sair);
 iniciar();
