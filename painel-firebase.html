@@ -29,6 +29,7 @@ select{background:#17150f;border:1px solid #95752d;color:#fff;border-radius:9px;
 .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
 .stat{background:linear-gradient(150deg,#1d190d,#080808 65%);border:1px solid #be9232;border-radius:14px;padding:15px 13px;min-height:123px;position:relative;overflow:hidden}
 .stat:after{content:"";position:absolute;width:75px;height:75px;right:-39px;top:-40px;border-radius:50%;box-shadow:0 0 70px #bd821d55}
+.stat[href]{display:block;color:#fff;text-decoration:none}.stat[href]:focus-visible{outline:3px solid #ffe086;outline-offset:3px}
 .stat .met{display:flex;justify-content:space-between;align-items:center;gap:7px;margin-bottom:8px;color:#e7b848}
 .stat svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .stat strong{display:block;font-size:25pt;line-height:1.1;color:#fff;margin:3px 0 7px}
@@ -128,7 +129,7 @@ body button#sairRodape:active{background:#d4a024}
 <div class="status" id="statusIntegracao" role="status" aria-live="polite">Conectando ao Firestore...</div>
 <div class="toolbar"><h2 class="gold">Visão Geral da Operação</h2><span>Todos os registros disponíveis no Firestore</span></div>
 <div class="cards" aria-label="Indicadores de operação">
-<article class="stat"><div class="met"><svg><use href="#calendar"/></svg></div><strong data-metrica="solicitacoes" aria-label="Dado não consultado">—</strong><p>Solicitações de reserva</p></article>
+<a class="stat" href="./solicitacoes.html" aria-label="Abrir Tela 04 — Solicitações de Reserva"><div class="met"><svg><use href="#calendar"/></svg></div><strong data-metrica="solicitacoes" aria-label="Dado não consultado">—</strong><p>Solicitações de reserva</p></a>
 <article class="stat"><div class="met"><svg><use href="#check"/></svg></div><strong data-metrica="confirmadas" aria-label="Dado não consultado">—</strong><p>Reservas confirmadas</p></article>
 <article class="stat"><div class="met"><svg><use href="#car"/></svg></div><strong data-metrica="andamento" aria-label="Dado não consultado">—</strong><p>Atendimentos em andamento</p></article>
 <article class="stat"><div class="met"><svg><use href="#done"/></svg></div><strong data-metrica="concluidos" aria-label="Dado não consultado">—</strong><p>Atendimentos concluídos</p></article>
@@ -335,6 +336,11 @@ el('sair').addEventListener('click',sair);
 el('sairRodape').addEventListener('click',sair);
 el('atualizar').addEventListener('click',carregarPainel);
 document.querySelectorAll('#menu button').forEach(botao=>botao.addEventListener('click',()=>{
+ if (botao.dataset.area === 'Solicitações de Reserva') {
+   // Navega na mesma aba: preserva a sessão Firebase do administrador PMA-001.
+   window.location.assign('./solicitacoes.html');
+   return;
+ }
  const mensagem=el('mensagem'); mensagem.hidden=false;
  mensagem.textContent=botao.dataset.area+': tela ainda não desenvolvida. Nenhuma alteração foi realizada.';
 }));
