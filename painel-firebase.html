@@ -366,6 +366,11 @@ document.querySelectorAll('#menu button').forEach(botao=>botao.addEventListener(
    window.location.assign('./aprovacao-acessos.html');
    return;
  }
+ if (botao.dataset.area === 'Meu Cadastro') {
+   // Abre a Tela 10 na mesma aba, mantendo a sessão PMA-001.
+   window.location.assign('./meu-cadastro.html');
+   return;
+ }
  const mensagem=el('mensagem'); mensagem.hidden=false;
  mensagem.textContent=botao.dataset.area+': tela ainda não desenvolvida. Nenhuma alteração foi realizada.';
 }));
