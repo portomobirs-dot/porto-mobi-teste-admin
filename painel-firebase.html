@@ -341,6 +341,11 @@ document.querySelectorAll('#menu button').forEach(botao=>botao.addEventListener(
    window.location.assign('./solicitacoes.html');
    return;
  }
+ if (botao.dataset.area === 'Formação de Preços') {
+   // Navegação na mesma aba, mantendo a sessão autenticada.
+   window.location.assign('./formacao-precos.html');
+   return;
+ }
  const mensagem=el('mensagem'); mensagem.hidden=false;
  mensagem.textContent=botao.dataset.area+': tela ainda não desenvolvida. Nenhuma alteração foi realizada.';
 }));
