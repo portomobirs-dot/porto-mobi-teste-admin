@@ -84,10 +84,11 @@ footer{text-align:center;margin:19px 0;color:#eee}
       <div class="info wide"><dt>E-mail de acesso</dt><dd id="email">—</dd></div>
       <div class="info"><dt>Telefone cadastrado</dt><dd id="telefone">Não informado</dd></div>
       <div class="info"><dt>Perfil de acesso</dt><dd id="papel">Administrador</dd></div>
-      <div class="info"><dt>Data do Cadastro</dt><dd id="dataCadastro">Não registrada</dd></div>
+      <div class="info"><dt>Data do Cadastro Administrativo (Firestore)</dt><dd id="dataCadastro">Não registrada</dd></div>
+      <div class="info"><dt>Criação da conta de acesso (Firebase Authentication)</dt><dd id="dataCriacaoConta">Consultando…</dd></div>
       <div class="info"><dt>Verificação do e-mail</dt><dd id="emailVerificado">—</dd></div>
     </dl>
-    <div class="note"><strong>Segurança:</strong> a senha não é exibida. O cadastro administrativo não pode ser editado por esta tela. Se a Data do Cadastro não existir nos documentos do Firestore, será mostrada como <strong>Não registrada</strong>.</div>
+    <div class="note"><strong>Segurança:</strong> a senha não é exibida e nenhum dado é alterado. A <strong>Data do Cadastro Administrativo</strong> é lida dos documentos do Firestore; se não tiver sido registrada, aparece “Não registrada”. A <strong>criação da conta de acesso</strong> é consultada separadamente no Firebase Authentication e pode ter uma data diferente. Nenhuma data é inventada ou gravada nesta tela.</div>
   </section>
   <button class="rodape-retorno" id="retornar" type="button">Retornar ao Painel do Administrador</button>
 </div>
@@ -126,6 +127,15 @@ function dataRegistrada(admin,perfil){
   if(!(d instanceof Date)||!Number.isFinite(d.getTime()))return "Data registrada em formato não reconhecido";
   return new Intl.DateTimeFormat("pt-BR",{dateStyle:"short",timeStyle:"short",timeZone:"America/Sao_Paulo"}).format(d);
 }
+// Data fornecida pelo Firebase Authentication para a conta de acesso autenticada.
+// Não é necessariamente a data de criação do documento administrativo no Firestore.
+function dataCriacaoConta(user){
+  const dataOriginal=user?.metadata?.creationTime;
+  if(!dataOriginal)return "Não disponível";
+  const d=new Date(dataOriginal);
+  if(!Number.isFinite(d.getTime()))return "Não disponível";
+  return new Intl.DateTimeFormat("pt-BR",{dateStyle:"short",timeStyle:"short",timeZone:"America/Sao_Paulo"}).format(d);
+}
 async function validarAdministrador(user){
   if(!user||user.uid!==ADMIN_UID)throw Error("Acesso restrito ao Administrador PMA-001.");
   const [docAdmin,docPerfil]=await Promise.all([
@@ -150,6 +160,7 @@ function mostrar(dados,user){
   $("telefone").textContent=telefone;
   $("papel").textContent="Administrador (PMA)";
   $("dataCadastro").textContent=dataRegistrada(admin,perfil);
+  $("dataCriacaoConta").textContent=dataCriacaoConta(user);
   $("emailVerificado").textContent=user.email?user.emailVerified?"Verificado":"Ainda não verificado":"Não disponível";
 }
 async function carregar(){
