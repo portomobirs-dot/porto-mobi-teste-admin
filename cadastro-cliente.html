@@ -58,10 +58,6 @@ footer{text-align:center;color:#e7e7e7;font-size:12pt;margin:20px 0}
 <section class="card">
 <h1>Faça seu cadastro</h1>
 <p class="lead">Porto Mobi · Transporte Executivo</p>
-<p>Preencha seus dados para solicitar seu cadastro como cliente. Sua senha será usada somente para sua conta de acesso e não será exibida ao administrador.</p>
-<p class="lead">Já tem uma conta? <a class="goldlink" href="./login-cliente.html">Entrar no Login do Cliente</a></p>
-<div class="callout"><strong>Importante:</strong> o cadastro não aprova automaticamente o acesso aos serviços nem confirma reservas. A liberação de funcionalidades ocorrerá em uma etapa posterior.</div>
-<div id="aviso" class="status" role="status" aria-live="polite">Preparando o cadastro seguro…</div>
 <div id="avisoAdmin" class="status bad" hidden>Este navegador está conectado como administrador PMA-001. Por segurança, faça o cadastro no aparelho da pessoa ou em uma janela separada, para não trocar a sessão do administrador.</div>
 
 <form id="formCliente" autocomplete="on" hidden>
@@ -76,6 +72,7 @@ footer{text-align:center;color:#e7e7e7;font-size:12pt;margin:20px 0}
 <div class="checkbox"><input id="ciente" type="checkbox" required><label for="ciente">Estou ciente de que meus dados serão utilizados para identificar meu cadastro e para contato referente aos serviços da Porto Mobi. Confirmo ser maior de idade ou ter autorização do responsável legal. *</label></div>
 <button id="criar" type="submit" disabled>Cadastrar</button>
 </form>
+<div id="aviso" class="status" role="status" aria-live="polite">Preparando o cadastro seguro…</div>
 
 <div id="existente" hidden>
 <h2>Sua conta de cliente</h2>
@@ -93,13 +90,6 @@ footer{text-align:center;color:#e7e7e7;font-size:12pt;margin:20px 0}
 <div class="actions"><button id="atualizar" type="button">Atualizar situação</button><button id="sair" type="button">Sair da conta</button></div>
 </div>
 </section>
-<section class="card">
-<h2>O que acontece depois?</h2>
-<p>A data e a hora serão registradas automaticamente pelo servidor do Firebase. O registro de cliente ficará vinculado à sua conta de acesso.</p>
-<p class="hint">Nesta fase, o código PMC sequencial é utilizado nos cadastros feitos pelo administrador. O cadastro feito pelo próprio cliente será identificado pelo seu usuário do Firebase, sem atribuir um código PMC fictício. Após o cadastro, você será levado para o Login do Cliente e, após entrar, para a Solicitação de Reserva. Enquanto o cadastro estiver pendente ou o e-mail não estiver verificado, o envio de pedidos permanecerá indisponível.</p>
-<p class="hint"><strong>Clientes já cadastrados pelo administrador:</strong> se você já recebeu um código PMC, aguarde a vinculação com sua conta de acesso para evitar dois registros do mesmo cliente.</p>
-<p class="hint">Caso já tenha uma conta de acesso, não crie outra com o mesmo e-mail.</p>
-</section>
 <footer>PORTO MOBI · Cadastro de Clientes · Página pública</footer>
 </main>
 <script src="https://www.gstatic.com/firebasejs/13.4.0/firebase-app-compat.js"></script>
@@ -112,7 +102,7 @@ const firebaseConfig={apiKey:"AIzaSyAGCmm6FmyPHrjsWEb4jqPXH32N7y7HLDU",authDomai
 const ADMIN_UID="Lfa50o8buQM36XwmB0b0gSglEiF2";
 const $=id=>document.getElementById(id);
 let auth=null,db=null,ready=false,busy=false,userAtual=null,saidaConcluida=false;
-function aviso(msg,tipo=""){const elem=$("aviso");elem.textContent=msg;elem.className="status"+(tipo?" "+tipo:"");}
+function aviso(msg,tipo=""){const elem=$("aviso");elem.textContent=msg;elem.className="status"+(tipo?" "+tipo:"");if(tipo==="bad")elem.hidden=false;}
 function erroAmigavel(e){const k=e?.code||"";if(k==="auth/email-already-in-use")return "Este e-mail já possui uma conta. Não crie outra conta com o mesmo endereço.";
  if(k==="auth/weak-password")return "A senha é considerada fraca. Escolha uma senha mais forte.";
  if(k==="auth/invalid-email")return "Confira o endereço de e-mail.";
@@ -154,7 +144,7 @@ async function registrarDoc(user,nome,telefone){
  // Os campos devem corresponder exatamente às regras restritas de autocadastro.
  await db.collection("clientes").doc(user.uid).set({
    auth_uid:user.uid,nome,telefone,email,
-   situacao:"Aprovado",origem:"autocadastro",
+   situacao:"Pendente",origem:"autocadastro",
    dataCadastro:firebase.firestore.FieldValue.serverTimestamp()
  });
 }
@@ -223,6 +213,7 @@ async function iniciar(){
   auth=firebase.auth();db=firebase.firestore();auth.languageCode="pt";
   auth.onAuthStateChanged(async user=>{
    userAtual=user;ready=true;
+   $("aviso").hidden=!!user;
    $("formCliente").hidden=!!user;$("existente").hidden=!user||user.uid===ADMIN_UID;
    $("avisoAdmin").hidden=!user||user.uid!==ADMIN_UID;
    if(user?.uid===ADMIN_UID){aviso("Este navegador já está autenticado como administrador. Para proteger sua sessão, faça o cadastro no navegador do cliente.");}
