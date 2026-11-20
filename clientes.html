@@ -339,7 +339,10 @@ async function cadastrarCliente(event){
 }
 async function carregar(){
  if(!autorizado||carregando)return;
- carregando=true;$("atualizar").disabled=true;
+ carregando=true;
+ consultaCarregada=false;
+ $("atualizar").disabled=true;
+ atualizarNovoCodigo();
  aviso("avisoDados","Consultando clientes autorizados no Firestore…");
  const lembrete=setTimeout(()=>aviso("avisoDados","A consulta está demorando. Confira sua internet e as permissões existentes; não altere as regras para contornar o erro."),18000);
  try{
@@ -347,6 +350,7 @@ async function carregar(){
    if(!autorizado||auth.currentUser?.uid!==ADMIN_UID)return;
    clientes=snap.docs.map(doc=>({id:doc.id,data:doc.data()}));
    clientes.sort((a,b)=>(dado(a.data,"nome")||"zz").localeCompare(dado(b.data,"nome")||"zz","pt-BR",{sensitivity:"base"}));
+   consultaCarregada=true;
    $("mTotal").textContent=clientes.length;
    $("mCodigo").textContent=clientes.filter(r=>/^PMC-/i.test(dado(r.data,"codigo"))).length;
    $("mTelefone").textContent=clientes.filter(r=>Boolean(dado(r.data,"telefone"))).length;
@@ -354,10 +358,16 @@ async function carregar(){
    limite=40;renderizar();
    aviso("avisoDados",clientes.length?"Consulta concluída. Nenhum cadastro foi alterado.":"Consulta concluída. Não há clientes cadastrados na coleção clientes.","good");
  }catch(e){
+   consultaCarregada=false;
    clientes=[];for(const k of ["mTotal","mCodigo","mTelefone","mEmail"])$(k).textContent="—";
    $("lista").replaceChildren();$("mostrarMais").hidden=true;$("contagem").textContent="Clientes indisponíveis";
    aviso("avisoDados","Não foi possível consultar clientes ("+(e.code||"falha de conexão")+"). Não altere regras de segurança para contornar o erro.","bad");
- }finally{clearTimeout(lembrete);carregando=false;$("atualizar").disabled=false;}
+ }finally{
+   clearTimeout(lembrete);
+   carregando=false;
+   $("atualizar").disabled=false;
+   atualizarNovoCodigo();
+ }
 }
 async function iniciar(){
  if(location.protocol!=="https:"){aviso("avisoAcesso","Abra a página pelo endereço HTTPS do GitHub Pages, não pelo arquivo dos Downloads.","bad");return;}
@@ -366,8 +376,10 @@ async function iniciar(){
    if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
    auth=firebase.auth();db=firebase.firestore();auth.languageCode="pt";
    auth.onAuthStateChanged(async user=>{
-     autorizado=false;$("conteudo").hidden=true;$("acesso").hidden=false;
+     autorizado=false;consultaCarregada=false;
+     $("conteudo").hidden=true;$("acesso").hidden=false;
      clientes=[];
+     atualizarNovoCodigo();
      if(!user){aviso("avisoAcesso","Você não está autenticado. Entre pela Tela 02 — Login.");return;}
      try{
        const admin=await validarAdministrador(user);
