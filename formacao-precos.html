@@ -30,8 +30,8 @@ p{margin:8px 0 15px}
 .status.good{border-color:#6eb58c;border-left-color:#6eb58c;background:#102719}
 .toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:12px 0}
 .actions{display:flex;gap:10px;flex-wrap:wrap}
-button,.nav{min-height:48px;padding:10px 14px;border:1px solid #ae873a;border-radius:10px;background:#211a0f;color:#fff;text-decoration:none;text-align:center}
-button:hover,.nav:hover{background:#342715}
+button,.nav{min-height:48px;padding:10px 14px;border:1px solid #efc55d;border-radius:10px;background:linear-gradient(110deg,#ffe47f,#dca92c);color:#1b1508;text-decoration:none;text-align:center;font-weight:700}
+button:hover,.nav:hover{filter:brightness(1.08)}
 button:disabled{opacity:.5;cursor:not-allowed}
 .gold{background:linear-gradient(110deg,#ffe47f,#dca92c)!important;color:#1b1508!important;border-color:#efc55d!important;font-weight:800}
 .gold:hover{filter:brightness(1.08)}
@@ -121,7 +121,7 @@ footer{text-align:center;margin:19px 0;color:#eee}
 <div class="actions"><button class="gold" id="calcular" type="button">Calcular preço</button><button id="limpar" type="button">Limpar valores</button></div>
 <p class="info-line">Esta é uma <strong>simulação administrativa</strong>: o cálculo não confirma reserva, não atribui motorista, não cria cobrança e não grava o valor no Firestore. O registro do preço na reserva será uma próxima etapa.</p>
 </section>
-<button class="gold exit" id="sair" type="button">Sair do Sistema</button>
+<button class="gold exit" id="voltarPainel" type="button" aria-label="Voltar à Tela 03 — Painel do Administrador sem encerrar a sessão">Voltar à Tela 03 — Painel do Administrador</button>
 </div>
 <footer>PORTO MOBI · Tela 05 · Formação de Preços · PMA-001</footer>
 </main>
@@ -236,7 +236,6 @@ async function validar(user){
  if(admin.codigo!=="PMA-001"||admin.ativo!==true||admin.papel!=="administrador"||perfil.code!=="PMA-001"||perfil.role!=="admin"||perfil.uid!==user.uid)throw Error("Perfil não autorizado.");
  return admin;
 }
-async function sair(){try{if(auth)await auth.signOut();}catch(e){}window.location.replace("./login.html");}
 async function iniciar(){
  if(location.protocol!=="https:"){aviso("avisoAcesso","Abra pelo endereço HTTPS do GitHub Pages, não pelo arquivo dos Downloads.","bad");return;}
  if(typeof firebase==="undefined"){aviso("avisoAcesso","As bibliotecas do Firebase não carregaram. Confira sua conexão.","bad");return;}
@@ -259,7 +258,7 @@ for(const id of Object.values(campos))$(id).addEventListener("input",atualizarCa
 $("calcular").addEventListener("click",()=>{const r=atualizarCalculo();if(r.valor!==null)$("total").scrollIntoView({behavior:"smooth",block:"center"});});
 $("limpar").addEventListener("click",limpar);
 $("atualizar").addEventListener("click",carregar);
-$("sair").addEventListener("click",sair);
+$("voltarPainel").addEventListener("click",()=>window.location.assign("./painel-firebase.html"));
 iniciar();
 </script>
 </body>
