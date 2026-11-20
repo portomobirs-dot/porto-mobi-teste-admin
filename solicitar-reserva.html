@@ -44,7 +44,10 @@ footer{text-align:center;color:#e7e7e7;font-size:12pt;margin:20px 0}
   <p class="hint">Preencha os dados da viagem. A solicitação ficará aguardando análise da Porto Mobi.</p>
   <form id="formReserva">
     <div class="fields">
-      <div class="field wide"><label for="dataSolicitacaoVisivel">Data e Hora da Solicitação</label><output id="dataSolicitacaoVisivel" class="registro-automatico" aria-live="polite">Registradas automaticamente pelo Firebase quando o pedido for enviado.</output></div>
+      <div class="field wide"><label for="codigoReservaVisivel">Código da Reserva</label><output id="codigoReservaVisivel" class="registro-automatico" aria-live="polite">PMR-000000 — número atribuído após o envio</output></div>
+      <div class="field"><label for="dataSolicitacaoVisivel">Data da Solicitação</label><output id="dataSolicitacaoVisivel" class="registro-automatico" aria-live="polite">Preparando prévia…</output></div>
+      <div class="field"><label for="horaSolicitacaoVisivel">Hora da Solicitação</label><output id="horaSolicitacaoVisivel" class="registro-automatico" aria-live="polite">Preparando prévia…</output></div>
+      <p class="hint wide" id="observacaoRegistro">Data e hora são prévias do tablet. O registro oficial será confirmado pelo Firebase após o envio.</p>
       <div class="field wide"><label for="origem">Local de embarque *</label><input id="origem" maxlength="180" placeholder="Rua, número, bairro e cidade" required></div>
       <div class="field wide"><label for="destino">Destino *</label><input id="destino" maxlength="180" placeholder="Endereço de destino" required></div>
       <div class="field"><label for="dataViagem">Data da viagem *</label><input id="dataViagem" type="date" required></div>
@@ -78,6 +81,14 @@ function mensagemErro(e){
  if(codigo==="unavailable"||codigo==="auth/network-request-failed")return "Não foi possível conectar ao Firebase. Confira a internet e consulte a administração antes de tentar novamente.";
  if(codigo==="auth/too-many-requests")return "Muitas solicitações. Tente novamente mais tarde.";
  return "Não foi possível concluir a operação ("+(codigo||"erro de conexão")+").";
+}
+// Apenas uma prévia informativa: a data oficial vem do servidor após registrar o pedido.
+function mostrarPreviaSolicitacao(){
+ if(envioConcluido)return;
+ const agora=new Date();
+ const f={timeZone:"America/Sao_Paulo"};
+ $("dataSolicitacaoVisivel").textContent=new Intl.DateTimeFormat("pt-BR",{...f,day:"2-digit",month:"2-digit",year:"numeric"}).format(agora)+" (prévia)";
+ $("horaSolicitacaoVisivel").textContent=new Intl.DateTimeFormat("pt-BR",{...f,hour:"2-digit",minute:"2-digit",hour12:false}).format(agora)+" (prévia)";
 }
 function botoes(){
  const autorizado=!!auth?.currentUser && auth.currentUser.uid!==ADMIN_UID && cadastroAprovado;
@@ -148,6 +159,7 @@ $("formReserva").addEventListener("submit",async ev=>{
  if(!Number.isInteger(passageiros)||passageiros<1||passageiros>20||observacoes.length>900){
   aviso("avisoEnvio","Confira a quantidade de passageiros e as observações.","bad");return;
  }
+ mostrarPreviaSolicitacao();
  ocupando=true;botoes();aviso("avisoEnvio","Enviando solicitação ao Firebase…");
  try{
   const user=auth.currentUser;
@@ -186,20 +198,24 @@ $("formReserva").addEventListener("submit",async ev=>{
   }
   if(!codigoReserva)throw Error("Não foi possível gerar o número da reserva");
   envioConcluido=true;
-  // A data e hora exibidas devem vir do Firestore, não do relógio do tablet.
-  $("dataSolicitacaoVisivel").textContent="Pedido registrado. Consultando data e hora no Firebase…";
+  $("codigoReservaVisivel").textContent=codigoReserva;
+  $("dataSolicitacaoVisivel").textContent="Consultando registro no Firebase…";
+  $("horaSolicitacaoVisivel").textContent="Consultando registro no Firebase…";
+  $("observacaoRegistro").textContent="Código registrado. A data e a hora oficiais vêm do servidor Firebase.";
+  // A confirmação de data e hora é buscada do Firestore, não do relógio do dispositivo.
   try{
    const registro=await db.collection("reservas").doc(codigoReserva).get({source:"server"});
    const carimbo=registro.exists?registro.data().dataSolicitacao:null;
-   if(carimbo&&typeof carimbo.toDate==="function"){
-    const instante=carimbo.toDate();
-    if(!Number.isFinite(instante.getTime()))throw Error("Carimbo de data inválido");
-    $("dataSolicitacaoVisivel").textContent=new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:false}).format(instante);
-   }else{
-    $("dataSolicitacaoVisivel").textContent="Registrada no Firebase. Data e hora disponíveis na consulta administrativa.";
-   }
+   if(!carimbo || typeof carimbo.toDate!=="function")throw Error("Carimbo indisponível");
+   const instante=carimbo.toDate();
+   if(!Number.isFinite(instante.getTime()))throw Error("Carimbo inválido");
+   $("dataSolicitacaoVisivel").textContent=new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric"}).format(instante);
+   $("horaSolicitacaoVisivel").textContent=new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit",hour12:false}).format(instante);
+   $("observacaoRegistro").textContent="Data e hora oficiais registradas pelo servidor Firebase (horário de Brasília).";
   }catch(_){
-   $("dataSolicitacaoVisivel").textContent="Registrada no Firebase. Data e hora disponíveis na consulta administrativa.";
+   $("dataSolicitacaoVisivel").textContent="Registrada — consultar na administração";
+   $("horaSolicitacaoVisivel").textContent="Registrada — consultar na administração";
+   $("observacaoRegistro").textContent="A reserva foi salva. Não envie novamente: consulte a data e a hora oficiais na administração.";
   }
   aviso("avisoEnvio","Solicitação "+codigoReserva+" registrada com sucesso! Situação: Aguardando Orçamento. Guarde seu número para consultas. A viagem só estará confirmada depois da análise da Porto Mobi.","good");
   aviso("aviso","Pedido "+codigoReserva+" enviado para análise da Porto Mobi.","good");
@@ -216,6 +232,7 @@ $("sair").addEventListener("click",async()=>{
  catch(e){aviso("aviso",mensagemErro(e),"bad");}
  finally{ocupando=false;botoes();}
 });
+mostrarPreviaSolicitacao();
 iniciar();
 </script>
 </body>
