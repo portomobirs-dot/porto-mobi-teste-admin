@@ -346,6 +346,11 @@ document.querySelectorAll('#menu button').forEach(botao=>botao.addEventListener(
    window.location.assign('./formacao-precos.html');
    return;
  }
+ if (botao.dataset.area === 'Clientes') {
+   // Abre a Tela 06 na mesma aba, preservando a sessão PMA-001.
+   window.location.assign('./clientes.html');
+   return;
+ }
  const mensagem=el('mensagem'); mensagem.hidden=false;
  mensagem.textContent=botao.dataset.area+': tela ainda não desenvolvida. Nenhuma alteração foi realizada.';
 }));
