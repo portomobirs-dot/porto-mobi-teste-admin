@@ -154,7 +154,7 @@ async function registrarDoc(user,nome,telefone){
  // Os campos devem corresponder exatamente às regras restritas de autocadastro.
  await db.collection("clientes").doc(user.uid).set({
    auth_uid:user.uid,nome,telefone,email,
-   situacao:"Pendente",origem:"autocadastro",
+   situacao:"Aprovado",origem:"autocadastro",
    dataCadastro:firebase.firestore.FieldValue.serverTimestamp()
  });
 }
