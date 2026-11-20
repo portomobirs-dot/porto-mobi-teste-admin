@@ -356,6 +356,11 @@ document.querySelectorAll('#menu button').forEach(botao=>botao.addEventListener(
    window.location.assign('./motoristas.html');
    return;
  }
+ if (botao.dataset.area === 'Financeiro') {
+   // Abre a Tela 08 na mesma aba, preservando a sessão PMA-001.
+   window.location.assign('./financeiro.html');
+   return;
+ }
  const mensagem=el('mensagem'); mensagem.hidden=false;
  mensagem.textContent=botao.dataset.area+': tela ainda não desenvolvida. Nenhuma alteração foi realizada.';
 }));
