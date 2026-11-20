@@ -94,6 +94,9 @@ body .stat.alert .met { color: #FF7775 !important; }
 body .stat .met,body .menu .symbol{color:#e9b83e!important}
 body .stat.alert .met{color:#ff7775!important}
 body .menu button,body .stat p,body .sub,body .pill,body h1,body h2,body h3,body span,body p,body label,body .message,body footer{font-family:Tahoma,Geneva,sans-serif;font-size:13pt;color:#fff}
+/* Botão de saída visível também no final do menu administrativo. */
+#sairRodape{display:block;width:100%;min-height:52px;margin-top:20px;padding:13px 16px;border:1px solid #d4a73a;border-radius:10px;background:#15120b;color:#fff;font-family:Tahoma,Geneva,sans-serif;font-size:13pt;font-weight:700;text-align:center}
+#sairRodape:hover{background:#211909}
 </style>
 </head>
 <body>
@@ -144,6 +147,7 @@ body .menu button,body .stat p,body .sub,body .pill,body h1,body h2,body h3,body
 <button type="button" data-area="Meu Cadastro"><span class="symbol"><svg><use href="#user"/></svg></span>Meu Cadastro (PMA)<span class="arrow">›</span></button>
 </div>
 <div class="message" id="mensagem" role="status" aria-live="polite" hidden></div>
+<button type="button" id="sairRodape" aria-label="Sair do Sistema e voltar ao login">Sair do Sistema</button>
 </section><footer>PORTO MOBI · Tela 03 · Consulta em tempo real mediante solicitação · PMA-001</footer>
 </main>
 <script src="https://www.gstatic.com/firebasejs/13.4.0/firebase-app-compat.js"></script>
@@ -326,6 +330,7 @@ async function iniciar() {
 }
 
 el('sair').addEventListener('click',sair);
+el('sairRodape').addEventListener('click',sair);
 el('atualizar').addEventListener('click',carregarPainel);
 document.querySelectorAll('#menu button').forEach(botao=>botao.addEventListener('click',()=>{
  const mensagem=el('mensagem'); mensagem.hidden=false;
